@@ -1,0 +1,13 @@
+{
+  "id": "/novasaki-invoice-record/",
+  "name": "Invoice Record",
+  "short_name": "Invoice Record",
+  "description": "Invoice photo and payment record",
+  "start_url": "/novasaki-invoice-record/",
+  "scope": "/novasaki-invoice-record/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#111827",
+  "orientation": "portrait",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
