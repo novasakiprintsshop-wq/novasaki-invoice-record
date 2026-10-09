@@ -1,0 +1,68 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest"><title>Invoice Record</title><style>*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#111827;font-family:system-ui,-apple-system,sans-serif}header{background:#111827;color:white;padding:18px 16px;position:sticky;top:0;z-index:3}header b{font-size:21px}header small{display:block;opacity:.7;margin-top:2px}main{max-width:760px;margin:auto;padding:14px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.card{background:white;border-radius:14px;padding:13px;box-shadow:0 2px 8px #0000000d}.stat span{font-size:12px;color:#667085}.stat strong{display:block;font-size:18px;margin-top:3px}.add{width:100%;border:0;border-radius:13px;background:#111827;color:white;font-weight:800;font-size:16px;padding:15px;margin:12px 0}.tabs{display:flex;gap:7px;margin-bottom:12px}.tabs button{flex:1;border:0;border-radius:10px;padding:10px;font-weight:700;background:#e8edf5}.tabs .on{background:#111827;color:#fff}.invoice{margin-bottom:9px;cursor:pointer}.row{display:flex;justify-content:space-between;gap:12px}.muted{font-size:12px;color:#667085;margin-top:3px}.amount{font-weight:800}.badge{display:inline-block;margin-top:8px;padding:4px 9px;border-radius:99px;font-size:11px;font-weight:800}.u{background:#fee2e2;color:#991b1b}.p{background:#dcfce7;color:#166534}.empty{text-align:center;color:#667085;padding:40px}.modal{display:none;position:fixed;inset:0;background:#0008;z-index:10;align-items:flex-end}.sheet{background:#fff;width:100%;max-height:94vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px}.sheet h2{margin:0 0 8px}.form{display:grid;gap:10px}.form label{font-size:12px;font-weight:800}.form input,.form textarea,.form select{width:100%;padding:11px;border:1px solid #d0d5dd;border-radius:9px;font:inherit}.form input:not([type="date"]):not([type="number"]):not([type="password"]),.form textarea{text-transform:uppercase}.form textarea{min-height:72px}.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1;padding:12px;border:0;border-radius:10px;font-weight:800}.dark{background:#111827;color:#fff}.light{background:#e8edf5}.green{background:#dcfce7;color:#166534}.red{background:#fee2e2;color:#991b1b}.preview{width:100%;max-height:280px;object-fit:contain;border-radius:10px;margin-top:10px;background:#f3f4f6}.progress{font-size:12px;color:#667085;margin:8px 0}.ocr{font-size:11px;white-space:pre-wrap;background:#f3f4f6;padding:8px;border-radius:8px;max-height:100px;overflow:auto}.hide{display:none!important}footer{text-align:center;color:#98a2b3;font-size:11px;padding:20px}</style></head><body><header><div><b>🧾 Invoice Record</b><small>Photo • Record • Payment</small></div></header><main><div class="grid"><div class="card stat"><span>Invoices</span><strong id="count">0</strong></div><div class="card stat"><span>Paid</span><strong id="paid">RM0.00</strong></div><div class="card stat"><span>Unpaid</span><strong id="unpaid">RM0.00</strong></div></div><button class="add" onclick="openAdd()">📷 Scan / Add Invoice</button><div class="tabs"><button id="allTab" class="on" onclick="filterBy('ALL')">All</button><button id="uTab" onclick="filterBy('UNPAID')">🔴 Unpaid</button><button id="pTab" onclick="filterBy('PAID')">🟢 Paid</button></div><div id="list"></div></main><footer>Data is stored on this device. You can save a photo first and fill in the invoice details later. Unpaid invoices keep their photo; paid invoices keep the record but remove the photo.</footer>
+
+<div class="modal" id="addModal"><div class="sheet"><h2>📷 Scan Invoice</h2><div class="progress" id="msg">Take a photo now, or save the invoice photo first and enter the details later.</div><input id="photo" type="file" accept="image/*" capture="environment" onchange="scan(this)"><button type="button" class="light" style="width:100%;margin-top:8px" onclick="openGallery()">🖼️ Add File from Gallery</button><img id="pic" class="preview hide"><div id="ocr" class="ocr hide"></div><button type="button" class="light" style="width:100%;margin-top:8px" onclick="retake()">📷 Retake / Scan Again</button><div class="form" style="margin-top:12px"><label>Invoice No.<input id="inv"></label><label>Customer<input id="cust" list="customerList" autocomplete="off"><datalist id="customerList"></datalist></label><label>Date<input id="dt" type="date"></label><label>Item(s)<textarea id="itm" placeholder="ENTER ITEM(S), ONE PER LINE"></textarea><select id="itemQuick" onchange="addQuickItem(this)"><option value="">▼ Select previous item to add</option></select></label><label>Total (RM)<input id="amt" inputmode="decimal" type="number" step="0.01"></label><label>Payment Status<select id="st"><option value="UNPAID">🔴 UNPAID</option><option value="PAID">🟢 PAID</option></select></label></div><div class="actions"><button class="light" onclick="closeAdd()">Cancel</button><button class="dark" onclick="save()">💾 Save Invoice</button></div></div></div>
+
+<div class="modal" id="viewModal"><div class="sheet"><h2>Invoice Details</h2><div id="details"></div><div class="actions"><button class="light" onclick="closeView()">Close</button><button class="red" onclick="deleteInvoice()">🗑️ Delete</button><button id="payBtn"></button></div></div></div>
+
+<script>
+const DB='InvoiceRecordDB2',STORE='invoices';let db,mode='ALL',photoData=null,current=null;
+function init(){return new Promise((ok,no)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});r.onsuccess=()=>{db=r.result;ok()};r.onerror=()=>no(r.error)})}
+function store(m='readonly'){return db.transaction(STORE,m).objectStore(STORE)}
+function getAll(){return new Promise((ok,no)=>{let r=store().getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+function put(x){return new Promise((ok,no)=>{let r=store('readwrite').put(x);r.onsuccess=ok;r.onerror=()=>no(r.error)})}
+function add(x){return new Promise((ok,no)=>{let r=store('readwrite').add(x);r.onsuccess=ok;r.onerror=()=>no(r.error)})}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function rm(n){return 'RM'+Number(n||0).toFixed(2)}
+async function render(){let a=await getAll();a.sort((x,y)=>{const nx=(String(x.invNo||'').match(/(\d+)$/)||['',0])[1],ny=(String(y.invNo||'').match(/(\d+)$/)||['',0])[1];return Number(ny)-Number(nx)||String(y.date||'').localeCompare(String(x.date||''))});let pa=a.filter(x=>x.status==='PAID'),un=a.filter(x=>x.status!=='PAID');count.textContent=a.length;paid.textContent=rm(pa.reduce((s,x)=>s+Number(x.amount||0),0));unpaid.textContent=rm(un.reduce((s,x)=>s+Number(x.amount||0),0));let shown=a.filter(x=>mode==='ALL'||x.status===mode);list.innerHTML=shown.length?shown.map(x=>'<div class="card invoice" onclick="view('+x.id+')"><div class="row"><div><b>'+esc(x.invNo||'No invoice no.')+'</b><div class="muted">'+esc(x.customer||'')+' • '+esc(x.date||'')+'</div></div><div class="amount">'+rm(x.amount)+'</div></div><span class="badge '+(x.status==='PAID'?'p':'u')+'">'+x.status+'</span></div>').join(''):'<div class="empty">No invoice records.</div>'}
+function forceUppercase(el){if(!el)return;el.addEventListener('input',()=>{const p=el.selectionStart;el.value=el.value.toUpperCase();try{el.setSelectionRange(p,p)}catch(e){}})}
+function fillQuickSelect(sel,items){if(!sel)return;sel.innerHTML='<option value="">▼ Select previous item to add</option>'+items.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')}
+function addQuickItem(sel){if(!sel.value)return;itm.value=itm.value?itm.value+'\\n'+sel.value:sel.value;itm.dispatchEvent(new Event('input'));sel.value=''}
+function addQuickEditItem(sel){if(!sel.value)return;editItm.value=editItm.value?editItm.value+'\\n'+sel.value:sel.value;editItm.dispatchEvent(new Event('input'));sel.value=''}
+async function refreshSuggestions(){
+  const a=await getAll();
+  const customers=[...new Set(a.map(x=>(x.customer||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const items=[...new Set(a.flatMap(x=>String(x.item||'').split(/\\n/).map(v=>v.trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
+  customerList.innerHTML=customers.map(x=>'<option value="'+esc(x)+'"></option>').join('');
+  fillQuickSelect(itemQuick,items);
+  fillQuickSelect(editItemQuick,items);
+}
+function filterBy(x){mode=x;allTab.className=x==='ALL'?'on':'';uTab.className=x==='UNPAID'?'on':'';pTab.className=x==='PAID'?'on':'';render()}
+async function getNextInvoiceNo(){
+  const a=await getAll();
+  let max=0;
+  for(const x of a){
+    const m=String(x.invNo||'').trim().match(/^NS\s*([0-9]+)$/i);
+    if(m)max=Math.max(max,Number(m[1]));
+  }
+  return 'NS'+String(max+1).padStart(3,'0');
+}
+async function openAdd(){photoData=null;inv.value=await getNextInvoiceNo();cust.value='';dt.value='';itm.value='';amt.value='';st.value='UNPAID';pic.classList.add('hide');ocr.classList.add('hide');msg.textContent='Take a clear photo of the invoice.';addModal.style.display='flex'}
+function closeAdd(){addModal.style.display='none'}
+function retake(){photo.value='';photoData=null;pic.classList.add('hide');ocr.classList.add('hide');inv.value='';cust.value='';itm.value='';amt.value='';msg.textContent='Take a clearer photo. Keep the invoice flat, upright and well lit.';photo.click()}
+function readPhoto(file){return new Promise(ok=>{let r=new FileReader();r.onload=()=>ok(r.result);r.readAsDataURL(file)})}
+function openGallery(){photo.removeAttribute('capture');photo.click();setTimeout(()=>photo.setAttribute('capture','environment'),300)}
+async function scan(input){
+  if(!input.files[0])return;
+  const file=input.files[0];
+  photoData=await readPhoto(file);
+  pic.src=photoData;
+  pic.classList.remove('hide');
+  ocr.classList.add('hide');
+  msg.textContent='Photo captured. You can enter the details now or save the photo and fill them in later.';
+}
+async function save(){let x={invNo:inv.value.trim(),customer:cust.value.trim(),date:dt.value,item:itm.value.trim(),amount:Number(amt.value||0),status:st.value,createdAt:Date.now()};if(x.status==='UNPAID'&&photoData)x.image=photoData;await add(x);closeAdd();await refreshSuggestions();render()}
+async function view(id){let a=await getAll();current=a.find(x=>x.id===id);details.innerHTML=
+'<div class="form"><label>Invoice No.<input id="editInv" value="'+esc(current.invNo||'')+'"></label><label>Customer<input id="editCust" list="customerList" autocomplete="off" value="'+esc(current.customer||'')+'"></label><label>Date<input id="editDt" type="date" value="'+esc(current.date||'')+'"></label><label>Item(s)<textarea id="editItm" placeholder="ENTER ITEM(S), ONE PER LINE">'+esc(current.item||'')+'</textarea><select id="editItemQuick" onchange="addQuickEditItem(this)"><option value="">▼ Select previous item to add</option></select></label><label>Total (RM)<input id="editAmt" inputmode="decimal" type="number" step="0.01" value="'+(current.amount||'')+'"></label><label>Payment Status<select id="editSt"><option value="UNPAID" '+(current.status!=='PAID'?'selected':'')+'>🔴 UNPAID</option><option value="PAID" '+(current.status==='PAID'?'selected':'')+'>🟢 PAID</option></select></label></div>'+
+(current.image?'<img class="preview" src="'+current.image+'">':'<p class="muted">No invoice photo saved (paid invoice or photo not captured).</p>');
+payBtn.textContent='💾 Save Changes';payBtn.className='dark';payBtn.onclick=saveChanges;forceUppercase(editInv);forceUppercase(editCust);forceUppercase(editItm);fillEditQuickFromCurrent();viewModal.style.display='flex'}
+function fillEditQuickFromCurrent(){refreshSuggestions()}
+function closeView(){viewModal.style.display='none'}
+async function saveChanges(){current.invNo=editInv.value.trim();current.customer=editCust.value.trim();current.date=editDt.value;current.item=editItm.value.trim();current.amount=Number(editAmt.value||0);current.status=editSt.value;if(current.status==='PAID')delete current.image;await put(current);closeView();await refreshSuggestions();render()}
+async function deleteInvoice(){if(!current)return;if(!confirm('Delete this invoice permanently?'))return;await new Promise((ok,no)=>{let r=store('readwrite').delete(current.id);r.onsuccess=ok;r.onerror=()=>no(r.error)});current=null;closeView();render()}
+['inv','cust','itm','editInv','editCust','editItm'].forEach(id=>forceUppercase(document.getElementById(id)));
+init().then(async()=>{await refreshSuggestions();await render()});
+</script><script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+}
+</script></body></html>
