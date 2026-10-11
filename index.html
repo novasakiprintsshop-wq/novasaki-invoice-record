@@ -61,12 +61,15 @@ async function syncCloud(){
   if(error)throw error;
   const local=await getAll();
   const byKey=new Map();
-  for(const x of local){const k=String(x.localId||x.id);byKey.set(k,x);}
+  for(const x of local){
+   if(!x.localId){x.localId=crypto.randomUUID();await put(x);}
+   const k=String(x.localId);byKey.set(k,x);
+  }
   for(const row of (remote||[])){
    const x=localRow(row),k=x.localId,existing=byKey.get(k);
-   if(!existing){const copy={...x};delete copy.localId;await add(copy);const allNow=await getAll();const saved=allNow[allNow.length-1];byKey.set(k,{...copy,id:saved?.id,localId:k});}
+   if(!existing){const copy={...x,localId:k};await add(copy);const allNow=await getAll();const saved=allNow.find(v=>String(v.localId)===k);byKey.set(k,saved||copy);}
    else if(Number(x.updatedAt||0)>Number(existing.updatedAt||existing.createdAt||0)){
-    const copy={...existing,...x,id:existing.id};delete copy.localId;await put(copy);byKey.set(k,{...copy,localId:k});
+    const copy={...existing,...x,id:existing.id,localId:k};await put(copy);byKey.set(k,copy);
    }
   }
   const merged=await getAll();
