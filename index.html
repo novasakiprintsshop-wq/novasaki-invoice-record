@@ -128,7 +128,7 @@ async function refreshSuggestions(){
   const items=[...new Set(a.flatMap(x=>String(x.item||'').split(/\\n/).map(v=>v.trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
   customerList.innerHTML=customers.map(x=>'<option value="'+esc(x)+'"></option>').join('');
   fillQuickSelect(itemQuick,items);
-  fillQuickSelect(editItemQuick,items);
+  fillQuickSelect(document.getElementById('editItemQuick'),items);
 }
 function filterBy(x){mode=x;allTab.className=x==='ALL'?'on':'';uTab.className=x==='UNPAID'?'on':'';pTab.className=x==='PAID'?'on':'';render()}
 async function getNextInvoiceNo(){
