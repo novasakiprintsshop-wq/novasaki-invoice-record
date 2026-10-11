@@ -121,14 +121,14 @@ async function render(){let a=await getAll();a.sort((x,y)=>{const nx=(String(x.i
 function forceUppercase(el){if(!el)return;el.addEventListener('input',()=>{const p=el.selectionStart;el.value=el.value.toUpperCase();try{el.setSelectionRange(p,p)}catch(e){}})}
 function fillQuickSelect(sel,items){if(!sel)return;sel.innerHTML='<option value="">▼ Select previous item to add</option>'+items.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')}
 function addQuickItem(sel){if(!sel.value)return;itm.value=itm.value?itm.value+'\\n'+sel.value:sel.value;itm.dispatchEvent(new Event('input'));sel.value=''}
-function addQuickEditItem(sel){if(!sel.value)return;editItm.value=editItm.value?editItm.value+'\\n'+sel.value:sel.value;editItm.dispatchEvent(new Event('input'));sel.value=''}
+function addQuickEditItem(sel){if(!sel.value)return;const field=document.getElementById('editItm');if(!field){sel.value='';return;}field.value=field.value?field.value+'\\n'+sel.value:sel.value;field.dispatchEvent(new Event('input'));sel.value=''}
 async function refreshSuggestions(){
   const a=await getAll();
   const customers=[...new Set(a.map(x=>(x.customer||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const items=[...new Set(a.flatMap(x=>String(x.item||'').split(/\\n/).map(v=>v.trim()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
   customerList.innerHTML=customers.map(x=>'<option value="'+esc(x)+'"></option>').join('');
   fillQuickSelect(itemQuick,items);
-  fillQuickSelect(document.getElementById('editItemQuick'),items);
+  const editQuick=document.getElementById('editItemQuick');if(editQuick)fillQuickSelect(editQuick,items);
 }
 function filterBy(x){mode=x;allTab.className=x==='ALL'?'on':'';uTab.className=x==='UNPAID'?'on':'';pTab.className=x==='PAID'?'on':'';render()}
 async function getNextInvoiceNo(){
